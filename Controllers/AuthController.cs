@@ -1,14 +1,7 @@
-﻿using LoanManagement.Data;
-using LoanManagement.Dtos;
-using LoanManagement.Models;
-using Microsoft.AspNetCore.Http;
+﻿using LoanManagement.Dtos;
+using LoanManagement.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.Data;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+
 
 namespace LoanManagement.Controllers
 {
@@ -16,36 +9,20 @@ namespace LoanManagement.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
-        public AuthController(ApplicationDbContext context, IConfiguration configuration)
+        private readonly IAuthService _authService;
+        public AuthController(IAuthService authService)
         {
-            _context = context;
-            _configuration = configuration;
+            _authService = authService;
         }
-
-
         [HttpPost("register")]
         public async Task<ActionResult> Register(CreateUserDto dto)
         {
-            var role = await _context.Roles.FirstOrDefaultAsync(x => x.RoleName == dto.Role);
+           var result = await _authService.RegisterAsync(dto);
 
-            if (role == null)
+            if (!result.Success)
             {
                 return NotFound("Role not found");
             }
-
-            var user = new User()
-            {
-                Name = dto.Name,
-                Email = dto.Email,
-                Password = dto.Password,
-                PhoneNumber = dto.PhoneNumber,
-                RoleId = role.RoleId
-            };            
-
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
 
             return Created();
         }
@@ -53,35 +30,14 @@ namespace LoanManagement.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> login(LoginDto dto)
         {
-            var user = await _context.Users.Where(x => x.Email == dto.Email && x.Password == dto.Password).FirstOrDefaultAsync();
+            var result = await _authService.LoginAsync(dto);
 
-            if (user == null)
+            if (!result.Success)
             {
-                return NotFound("User not found");
+                return Unauthorized();
             }
 
-            var role = await _context.Roles.Where(x => x.RoleId == user.RoleId).Select(x => x.RoleName).FirstOrDefaultAsync();
-
-            var key = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
-            var secretKey = new SymmetricSecurityKey(key);
-            var signingCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-
-            var tokenOptions = new JwtSecurityToken(
-                issuer: "https://localhost:7113",
-                audience: "https://localhost:7113",
-                claims: new List<Claim>()
-                {
-                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                        new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.Role, role)
-                },
-                expires: DateTime.UtcNow.AddMinutes(5),
-                signingCredentials: signingCredentials
-                );
-
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(tokenOptions);
-
-            return Ok(new { Token = tokenString });
+            return Ok(new { Token = result.Token });
         }
     }
 }

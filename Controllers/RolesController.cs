@@ -1,5 +1,6 @@
 ﻿using LoanManagement.Data;
 using LoanManagement.Dtos;
+using LoanManagement.Interfaces;
 using LoanManagement.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,22 +11,22 @@ namespace LoanManagement.Controllers
     [ApiController]
     public class RolesController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        public RolesController(ApplicationDbContext context)
+        private readonly IRoleService _roleService;
+        public RolesController(IRoleService roleService)
         {
-            _context = context;
+            _roleService = roleService;
         }
 
         [HttpPost]
         public async Task<ActionResult> Create(CreateRoleDto dto)
         {
-            var role = new Role()
-            {
-                RoleName = dto.Name
-            };
+            var result = await _roleService.CreateAsync(dto);
 
-            await _context.AddAsync(role);
-            await _context.SaveChangesAsync();
+            if (!result.Success)
+            {
+                return BadRequest();
+            }
+
 
             return Created();
         }

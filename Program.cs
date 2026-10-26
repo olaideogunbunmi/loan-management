@@ -1,4 +1,6 @@
+using LoanManagement.Business;
 using LoanManagement.Data;
+using LoanManagement.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -70,6 +72,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+
+
+builder.Services.AddScoped<ILoanService, LoanService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 
 
